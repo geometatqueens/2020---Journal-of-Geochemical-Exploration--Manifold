@@ -1,0 +1,122 @@
+---
+title: "Serra do Garrote Database, Imputation & PCA"
+output: html_notebook
+---
+```{r}
+rm(list = ls())
+```
+
+```{r}
+library(readxl)
+library(openxlsx)
+library(ggfortify)
+library(ggplot2)
+library(robCompositions)
+library(export)
+library(randomForest)
+```
+
+
+```{r}
+data <- read.csv("../02_Export/CSV/DB_SG_20191027.csv")
+```
+
+
+
+```{r}
+data_imp = impKNNa(data[19:84],  method = "knn", k = 10, metric = "Aitchison",
+                           agg = "median", primitive = FALSE, normknn = TRUE, das = FALSE,
+                           adj = "median")
+```
+
+```{r}
+imputes_knna = data_imp$xImp
+imputes_knna = as.data.frame(imputes_knna)
+```
+
+```{r}
+data_imputted = cbind(data[1:18], imputes_knna)
+```
+
+```{r}
+write.csv(data_imputted, file = "../02_Export/CSV/DB_SG_IMPUTTED_20191027.csv")
+```
+
+
+
+```{r}
+data_imputted[19:31] = data_imputted[19:31] * 10000
+data_imputted[81:84] = data_imputted[81:84] * 10000
+```
+
+
+```{r}
+clr_data = cenLR(data_imputted[19:84])
+```
+
+```{r}
+clr_merge = cbind(data_imputted[1:18], clr_data[["x.clr"]])
+```
+
+
+General plot for lithofacies
+```{r}
+plot4 = autoplot(PCA_data_SG, x=2, y=3, data = clr_merge, colour = "Subunit", shape="Occurrence", fill="Subunit",loadings = T, loadings.colour = "white", loadings.label = T, loadings.label.size = 3.5,loadings.label.alpha = 1, loadings.label.colour = "black", repel = TRUE, frame = FALSE, frame.type = "norm", size = 2, alpha = "Subunit")
+
+plot4  + 
+  scale_color_manual(values=c("red","seagreen","blue")) + 
+  scale_shape_manual(values=c(22, 3, 23, 25, 21, 24, 8,14,11,1,20,3,4)) + 
+  scale_fill_manual(values=c("red","seagreen","blue")) +
+  scale_alpha_manual(values=c(1,1,1,1,1,1,1,1,1))
+```
+
+
+Export a vector image to ppt:
+
+```{r}
+myplot=plot4  + 
+  scale_color_manual(values=c("red","seagreen","blue")) + 
+  scale_shape_manual(values=c(0, 1, 2, 3, 4, 5, 6, 7, 8,9,10,11,12,13)) + 
+  scale_fill_manual(values=c("yellow", "#78630a", "#d26132",'black'))
+
+#filen <- tempfile(pattern = "ggplot")
+graph2ppt(x=myplot, file='SG_Occurence_Zn_loading', vector.graphic=TRUE, width=9,
+aspectr=sqrt(2), append = FALSE)
+```
+
+
+
+
+```{r}
+OUT <- createWorkbook()
+
+addWorksheet(OUT, "sdev")
+addWorksheet(OUT, "rotation")
+addWorksheet(OUT, "center")
+addWorksheet(OUT, "scale")
+addWorksheet(OUT, "x")
+
+
+writeData(OUT, sheet = "sdev", x = PCA_data_SG$sdev)
+writeData(OUT, sheet = "rotation", x = PCA_data_SG$rotation)
+writeData(OUT, sheet = "center", x = PCA_data_SG$center)
+writeData(OUT, sheet = "scale", x = PCA_data_SG$scale)
+writeData(OUT, sheet = "x", x = PCA_data_SG$x)
+
+
+saveWorkbook(OUT, "../02_Export/CSV/TABLE_PCA_VZN_SG.xlsx")
+```
+
+```{r}
+clr_merge = cbind(clr_merge, PCA_data_SG$x)
+orig_merge = cbind(data_imputted, PCA_data_SG$x)
+```
+
+```{r}
+write.csv(clr_merge, file = "../02_Export/CSV/DB_SG_IMPUTTED_PCA.csv")
+write.csv(orig_merge, file = "../02_Export/CSV/DB_SG_ORIG_IMPUTTED_PCA.csv")
+```
+
+```{r}
+rm(list = ls())
+```
